@@ -2713,6 +2713,7 @@
       </div>
       <div class="card">
         <h3>Add client</h3>
+        <button type="button" id="cdContactPickBtn" onclick="pickClientFromContacts()" style="display:none;width:100%;margin-bottom:10px;padding:10px;border-radius:8px;border:1px solid var(--line);background:var(--paper);cursor:pointer;">📇 Import from Contacts</button>
         <div class="field"><label data-i18n="lbl_client_name">Client Name</label><input type="text" id="cdName" placeholder="e.g. Sharma Traders" data-i18n-ph="ph_e_g_sharma_traders"></div>
         <div class="row2">
           <div class="field"><label data-i18n="lbl_contact_number">Contact Number</label><input type="text" id="cdPhone" placeholder="e.g. 98765 43210" data-i18n-ph="ph_e_g_98765_43210"></div>
@@ -7152,6 +7153,28 @@ function addClient(){
   saveClientsCache();
   ['cdName','cdPhone','cdEmail','cdPan','cdGstin','cdNotes'].forEach(id=>document.getElementById(id).value='');
   renderClientList();
+}
+// Contact Picker API: lets the user pick a phone contact to prefill the
+// Add Client form. Only shows the button where the browser supports it
+// (Chrome for Android); silently hidden everywhere else, including iOS
+// Safari and desktop, which don't implement this API.
+if('contacts' in navigator && 'ContactsManager' in window){
+  const _cdBtn = document.getElementById('cdContactPickBtn');
+  if(_cdBtn) _cdBtn.style.display = 'block';
+}
+async function pickClientFromContacts(){
+  try{
+    const props = ['name','tel','email'];
+    const opts = {multiple:false};
+    const contacts = await navigator.contacts.select(props, opts);
+    if(!contacts || !contacts.length) return;
+    const c = contacts[0];
+    if(c.name && c.name[0]) document.getElementById('cdName').value = c.name[0];
+    if(c.tel && c.tel[0]) document.getElementById('cdPhone').value = c.tel[0];
+    if(c.email && c.email[0]) document.getElementById('cdEmail').value = c.email[0];
+  } catch(e){
+    console.warn('Contact picker cancelled or failed', e);
+  }
 }
 function deleteClient(id){
   clientsCache = clientsCache.filter(c=>c.id!==id);
@@ -16930,5 +16953,30 @@ function startConnectivityMonitor(){
 })();
 </script>
 
+<script>
+  // Deep-link support: lets PWA manifest "shortcuts" (and any external link
+  // with a #view-xxx hash) jump straight to a specific screen on load.
+  (function(){
+    function openFromHash(){
+      var id = (location.hash || '').replace('#', '');
+      if(id && document.getElementById(id) && typeof showView === 'function'){
+        showView(id);
+      }
+    }
+    if(document.readyState === 'complete' || document.readyState === 'interactive'){
+      openFromHash();
+    } else {
+      document.addEventListener('DOMContentLoaded', openFromHash);
+    }
+    window.addEventListener('hashchange', openFromHash);
+  })();
+</script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/CA-Desk-/sw.js', { scope: '/CA-Desk-/' });
+    });
+  }
+</script>
 </body>
 </html>
