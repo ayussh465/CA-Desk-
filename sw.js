@@ -5,11 +5,13 @@
 // static shell assets for fast loading — it does not attempt to make the
 // app "work offline" end-to-end.
 
-const CACHE_NAME = 'ca-desk-cache-v1';
+const CACHE_NAME = 'ca-desk-cache-v2';
+const OFFLINE_URL = './offline.html';
 const APP_SHELL = [
   './',
   './index.html',
   './manifest.json',
+  './offline.html',
   './icons/icon-192x192.png',
   './icons/icon-512x512.png',
   './icons/apple-touch-icon.png'
@@ -43,6 +45,19 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Full-page navigations get an offline fallback page if the network
+  // fails and nothing cached matches (e.g. first visit while offline).
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(() =>
+        caches.match(event.request).then((cached) =>
+          cached || caches.match(OFFLINE_URL)
+        )
+      )
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then((cached) => {
       if (cached) return cached;
@@ -58,4 +73,12 @@ self.addEventListener('fetch', (event) => {
       }).catch(() => cached);
     })
   );
+});
+
+// Lets index.html trigger an immediate update (e.g. from an "Update
+// available" prompt) instead of waiting for all tabs to close.
+self.addEventListener('message', (event) => {
+  if (event.data === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
