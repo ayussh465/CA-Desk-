@@ -1191,6 +1191,7 @@
       <div id="gstResult"></div>
       <div class="section-label">Other GST Tools</div>
       <div class="placeholder-list">
+        <div class="placeholder-item" onclick="showView('view-epfcalc')" style="cursor:pointer;">EPF / PF Calculator <span class="arrow">›</span></div>
         <div class="placeholder-item" onclick="showView('view-gstinterest')" style="cursor:pointer;">Late Payment Interest (Sec 50) <span class="arrow">›</span></div>
         <div class="placeholder-item" onclick="showView('view-invoice')" style="cursor:pointer;">GST Invoice Generator <span class="arrow">›</span></div>
         <div class="placeholder-item" onclick="showView('view-hsnlookup')" style="cursor:pointer;">HSN / SAC Code Lookup <span class="arrow">›</span></div>
@@ -1225,6 +1226,29 @@
         <div class="placeholder-item" onclick="showView('view-multigstin')" style="cursor:pointer;">Multi-GSTIN Client Dashboard <span class="arrow">›</span></div>
         <div class="placeholder-item" onclick="showView('view-casualnrtp')" style="cursor:pointer;">Casual / NRTP Registration Calculator <span class="arrow">›</span></div>
       </div>
+    </div>
+
+    <!-- EPF / PF Calculator -->
+    <div class="view" id="view-epfcalc">
+      <div class="tool-header">
+        <div class="back-btn" onclick="showView('view-gst')">←</div>
+        <div><div class="tool-title">EPF / PF Calculator</div>
+        <div class="tool-sub">Project your Provident Fund maturity corpus at retirement</div></div>
+      </div>
+      <div class="card">
+        <h3>Inputs</h3>
+        <div class="field"><label>Current Age (years)</label><input type="number" id="epfAge" value="30"></div>
+        <div class="field"><label>Retirement Age (years)</label><input type="number" id="epfRetireAge" value="58"></div>
+        <div class="field"><label>Current Basic + DA (₹/month)</label><input type="number" id="epfBasic" value="25000"></div>
+        <div class="field"><label>Current EPF Balance (₹)</label><input type="number" id="epfCurrentBalance" value="0"></div>
+        <div class="field"><label>Employee Contribution (%)</label><input type="number" id="epfEmpeeRate" value="12"></div>
+        <div class="field"><label>Employer Contribution (%)</label><input type="number" id="epfEmperRate" value="12"></div>
+        <div class="field"><label>Expected Annual Salary Increase (%)</label><input type="number" id="epfIncrement" value="5"></div>
+        <div class="field"><label>Expected Annual EPF Interest Rate (%)</label><input type="number" id="epfInterest" value="8.25" step="0.01"></div>
+        <button class="btn" onclick="calcEpfCalc()">Calculate Maturity Corpus</button>
+        <div class="note" style="margin:8px 0 0;">Employer's 8.33% (on wage capped at ₹15,000) is routed to the EPS pension fund, not the interest-bearing PF account, so it's excluded from the corpus below. Interest is estimated as compounding monthly on the running balance — actual EPFO crediting mechanics may differ slightly.</div>
+      </div>
+      <div id="epfResult"></div>
     </div>
 
     <!-- GST Late Payment Interest -->
@@ -16065,6 +16089,50 @@ function calcGST(){
     </div>`;
 }
 calcGST();
+
+/* ---------------- EPF / PF Calculator (maturity corpus) ---------------- */
+function calcEpfCalc(){
+  const age = parseFloat(document.getElementById('epfAge').value)||0;
+  const retireAge = parseFloat(document.getElementById('epfRetireAge').value)||0;
+  let wage = parseFloat(document.getElementById('epfBasic').value)||0;
+  let balance = parseFloat(document.getElementById('epfCurrentBalance').value)||0;
+  const empeeRate = parseFloat(document.getElementById('epfEmpeeRate').value)||0;
+  const emperRate = parseFloat(document.getElementById('epfEmperRate').value)||0;
+  const increment = parseFloat(document.getElementById('epfIncrement').value)||0;
+  const rate = parseFloat(document.getElementById('epfInterest').value)||0;
+
+  const years = Math.max(retireAge-age, 0);
+  const startingBalance = balance;
+  let totalEmployee = 0, totalEmployer = 0, totalInterest = 0;
+
+  for(let y=0; y<years; y++){
+    for(let m=0; m<12; m++){
+      const epsWage = Math.min(wage, 15000);
+      const employerEPS = epsWage*8.33/100;
+      const employeeContrib = wage*empeeRate/100;
+      const employerContrib = Math.max(wage*emperRate/100 - employerEPS, 0);
+      balance += employeeContrib + employerContrib;
+      totalEmployee += employeeContrib;
+      totalEmployer += employerContrib;
+      const monthlyInterest = balance*rate/12/100;
+      balance += monthlyInterest;
+      totalInterest += monthlyInterest;
+    }
+    wage = wage*(1+increment/100);
+  }
+
+  document.getElementById('epfResult').innerHTML = years>0 ? `
+    <div class="result-card">
+      <h3>Projected Maturity Corpus at age ${retireAge}</h3>
+      <div class="rline"><span>Years to Retirement</span><span class="v">${years}</span></div>
+      <div class="rline"><span>Opening Balance</span><span class="v">${inr(startingBalance)}</span></div>
+      <div class="rline"><span>Total Employee Contribution</span><span class="v">${inr(totalEmployee)}</span></div>
+      <div class="rline"><span>Total Employer Contribution (PF portion)</span><span class="v">${inr(totalEmployer)}</span></div>
+      <div class="rline"><span>Total Interest Earned</span><span class="v">${inr(totalInterest)}</span></div>
+      <div class="rline hi"><span>Maturity Corpus</span><span class="v">${inr(balance)}</span></div>
+    </div>` : `<div class="result-card"><h3>Check your ages</h3><div class="rline"><span>Retirement age must be greater than current age</span></div></div>`;
+}
+calcEpfCalc();
 
 /* ---------------- Income Tax (New Regime FY25-26) ---------------- */
 function calcIncomeTax(){
